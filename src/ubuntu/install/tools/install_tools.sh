@@ -22,8 +22,9 @@ else
   locale-gen en_US.UTF-8
 fi
 
+#Below step might be what's breaking nix install. Nope it's not
 if [ "$DISTRO" = "ubuntu" ]; then
-  #update mesa to latest
-  add-apt-repository ppa:kisak/turtle
+  update mesa to latest
+  add-apt-repository# ppa:kisak/turtle
   apt full-upgrade -y
 fi
