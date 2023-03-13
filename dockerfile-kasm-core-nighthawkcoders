@@ -54,6 +54,7 @@ WORKDIR $HOME
 RUN mkdir -p $HOME/Desktop
 
 
+
 # Support NVIDIA gpus for graphics acceleration
 RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
     echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
@@ -61,7 +62,16 @@ ENV LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:/usr/lib/i386-linux-gnu${LD_LIBRAR
 ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics,compat32,utility
 COPY src/ubuntu/install/nvidia/10_nvidia.json /usr/share/glvnd/egl_vendor.d/10_nvidia.json
 
-### Install common tools
+# Install nix package manager:
+
+RUN apt update -y && apt install -y curl xz-utils \
+  && curl -L https://nixos.org/nix/install -o nix-install.sh \
+  && chmod +x nix-install.sh \
+  && ./nix-install.sh --daemon --yes \
+  && rm nix-install.sh \
+  && apt autoremove -y && apt clean -y
+
+### Install common tools THIS STEP BREAKS NIX INSTALLATION. Why?
 COPY ./src/ubuntu/install/tools $INST_SCRIPTS/tools/
 RUN bash $INST_SCRIPTS/tools/install_tools.sh && rm -rf $INST_SCRIPTS/tools/
 
@@ -93,7 +103,6 @@ COPY ./src/common/install/kasm_vnc/kasmvnc.yaml /etc/kasmvnc/
 COPY ./src/ubuntu/install/kasm_upload_server $INST_SCRIPTS/kasm_upload_server/
 RUN bash $INST_SCRIPTS/kasm_upload_server/install_kasm_upload_server.sh  && rm -rf $INST_SCRIPTS/kasm_upload_server/
 
-
 ### Install Audio
 COPY ./src/ubuntu/install/audio $INST_SCRIPTS/audio/
 RUN bash $INST_SCRIPTS/audio/install_audio.sh  && rm -rf $INST_SCRIPTS/audio/
@@ -124,6 +133,7 @@ RUN rm -rf $INST_SCRIPTS/resources/
 RUN chmod +x /etc/squid/kasm_squid_adapter
 RUN chmod +x /etc/squid/start_squid.sh && chmod 4755 /etc/squid/start_squid.sh
 
+
 ### configure startup
 COPY ./src/common/scripts/kasm_hook_scripts $STARTUPDIR
 ADD ./src/common/startup_scripts $STARTUPDIR
@@ -138,16 +148,6 @@ RUN bash $INST_SCRIPTS/extra/$EXTRA_SH  && rm -rf $INST_SCRIPTS/extra/
 COPY ./src/ubuntu/install/virtualgl $INST_SCRIPTS/virtualgl/
 RUN bash $INST_SCRIPTS/virtualgl/install_virtualgl.sh && rm -rf $INST_SCRIPTS/virtualgl/
 
-# Install nix package manager:
-
-RUN apt update -y && apt install -y curl xz-utils \
-  && curl -L https://nixos.org/nix/install -o nix-install.sh \
-  && chmod +x nix-install.sh \
-  && ./nix-install.sh --daemon --yes \
-  && rm nix-install.sh \
-  && apt autoremove -y && apt clean -y
-
-
 ### Create user and home directory for base images that don't already define it
 RUN (groupadd -g 1000 kasm-user \
     && useradd -M -u 1000 -g 1000 kasm-user \
@@ -155,6 +155,7 @@ RUN (groupadd -g 1000 kasm-user \
 ENV HOME /home/kasm-user
 WORKDIR $HOME
 RUN mkdir -p $HOME && chown -R 1000:0 $HOME
+
 
 ### FIX PERMISSIONS ## Objective is to change the owner of non-home paths to root, remove write permissions, and set execute where required
 # these files are created on container first exec, by the default user, so we have to create them since default will not have write perm
@@ -181,6 +182,8 @@ RUN touch $STARTUPDIR/wm.log \
     && chown -R root:root /usr/local/bin \
     && chown 1000:root /var/run/pulse \
     && rm -Rf /home/kasm-default-profile/.launchpadlib
+
+
 
 USER 1000
 
